@@ -1,118 +1,543 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Prediction Report</title>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Analysis Report | Rice Leaf Disease Detection</title>
 
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-    />
-  </head>
+  <!-- Google Fonts & Bootstrap 5 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;600&family=Noto+Sans+Kannada:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
-  <body style="background: linear-gradient(135deg, #e6f4ff, #f9fff0)">
-    <div
-      class="container d-flex justify-content-center align-items-center min-vh-100"
-    >
-      <div class="card shadow-lg p-4" style="width: 600px; border-radius: 18px">
-        <!-- HEADER -->
-        <h3 class="text-center text-primary mb-3">
-          🌾 Rice Leaf Disease Analysis Report
-        </h3>
+  <style>
+    :root {
+      --primary: #10b981;
+      --primary-dark: #059669;
+      --primary-light: #ecfdf5;
+      --surface: #ffffff;
+      --bg-gradient: linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 50%, #fefce8 100%);
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+      --shadow-sm: 0 2px 8px rgba(0,0,0,0.04);
+      --shadow-md: 0 10px 25px -5px rgba(0,0,0,0.08), 0 8px 10px -6px rgba(0,0,0,0.04);
+      --shadow-lg: 0 20px 35px -10px rgba(16, 185, 129, 0.15);
+    }
 
-        <!-- Uploaded Image -->
-        <img src="{{ image_path }}" class="img-fluid rounded mb-3 border" />
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      background: var(--bg-gradient);
+      min-height: 100vh;
+      color: var(--text-main);
+      padding: 2rem 1rem;
+    }
 
-        <!-- Prediction Summary -->
-        <div class="text-center">
-          <h5 class="text-success">
-            Disease Detected:
-            <strong>{{ prediction }}</strong>
-          </h5>
+    .hindi-text { font-family: 'Noto Sans Devanagari', 'Plus Jakarta Sans', sans-serif; }
+    .kannada-text { font-family: 'Noto Sans Kannada', 'Plus Jakarta Sans', sans-serif; }
 
-          <span class="badge bg-info fs-6 mb-2">
-            Confidence: {{ confidence }}%
-          </span>
+    .main-card {
+      background: var(--surface);
+      border-radius: 24px;
+      border: 1px solid rgba(255,255,255,0.8);
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+      max-width: 780px;
+      margin: 0 auto;
+      backdrop-filter: blur(10px);
+    }
 
-          <br />
+    .card-header-custom {
+      background: linear-gradient(135deg, #065f46 0%, #047857 50%, #059669 100%);
+      color: #ffffff;
+      padding: 1.75rem 2rem;
+      text-align: center;
+    }
 
-          <span class="badge bg-warning text-dark fs-6">
-            Severity Level: {{ severity }}
-          </span>
+    .badge-prediction {
+      font-size: 1.15rem;
+      padding: 0.5rem 1.25rem;
+      border-radius: 9999px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .image-preview-container {
+      background: #f8fafc;
+      border-radius: 16px;
+      border: 1px solid var(--border-color);
+      padding: 0.75rem;
+      height: 100%;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .image-preview-container:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .image-preview {
+      width: 100%;
+      height: 220px;
+      object-fit: cover;
+      border-radius: 12px;
+    }
+
+    /* Multilingual Tabs */
+    .nav-pills .nav-link {
+      color: var(--text-muted);
+      border-radius: 12px;
+      padding: 0.5rem 1.2rem;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+    .nav-pills .nav-link.active {
+      background-color: #059669;
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+    }
+
+    /* Voice Guidance Player Cards */
+    .voice-card {
+      background: #ffffff;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1rem;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+    }
+
+    .voice-card:hover {
+      border-color: #10b981;
+      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.12);
+      transform: translateY(-1px);
+    }
+
+    .voice-card.is-playing {
+      border-color: #059669;
+      background: #f0fdf4;
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+    }
+
+    .lang-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    audio {
+      width: 100%;
+      height: 40px;
+      border-radius: 20px;
+      outline: none;
+    }
+
+    audio::-webkit-media-controls-panel {
+      background-color: #f1f5f9;
+    }
+
+    .btn-play-tts {
+      background-color: #10b981;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 0.4rem 0.9rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      transition: all 0.2s ease;
+    }
+    .btn-play-tts:hover {
+      background-color: #059669;
+      color: white;
+    }
+
+    /* Animated Waveform for playing state */
+    .waveform {
+      display: none;
+      align-items: center;
+      gap: 3px;
+      height: 16px;
+    }
+    .is-playing .waveform {
+      display: inline-flex;
+    }
+    .waveform-bar {
+      width: 3px;
+      height: 100%;
+      background-color: #059669;
+      border-radius: 2px;
+      animation: wave 1s ease-in-out infinite alternate;
+    }
+    .waveform-bar:nth-child(2) { animation-delay: 0.2s; height: 70%; }
+    .waveform-bar:nth-child(3) { animation-delay: 0.4s; height: 100%; }
+    .waveform-bar:nth-child(4) { animation-delay: 0.1s; height: 50%; }
+
+    @keyframes wave {
+      0% { height: 20%; }
+      100% { height: 100%; }
+    }
+
+    .btn-action-primary {
+      background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+      border: none;
+      border-radius: 14px;
+      padding: 0.9rem 1.5rem;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: white;
+      box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);
+      transition: all 0.2s ease;
+      text-decoration: none;
+      display: inline-block;
+      text-align: center;
+      width: 100%;
+    }
+    .btn-action-primary:hover {
+      background: linear-gradient(135deg, #047857 0%, #059669 100%);
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: 0 12px 25px rgba(16, 185, 129, 0.4);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container py-3">
+    <div class="main-card">
+
+      <!-- HEADER -->
+      <div class="card-header-custom">
+        <h2 class="h4 mb-1 fw-bold">🌾 Rice Leaf Disease Analysis Report</h2>
+        <p class="mb-0 text-white-50 small">AI-Powered Deep Learning Detection with Grad-CAM & Multilingual Guidance</p>
+      </div>
+
+      <div class="p-4 p-md-5">
+
+        <!-- PREDICTION SUMMARY BANNER -->
+        <div class="text-center mb-4 p-3 bg-light rounded-4 border">
+          <div class="text-muted small text-uppercase fw-bold tracking-wide mb-1">Detection Result</div>
+          <h3 class="fw-bold text-success mb-2">{{ display_name or prediction }}</h3>
+          
+          <div class="d-flex flex-wrap justify-content-center gap-2 mt-2">
+            <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-3 py-2 fs-6">
+              <i class="bi bi-shield-check me-1"></i> Confidence: {{ confidence }}%
+            </span>
+
+            {% if severity == 'Severe' %}
+              <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-3 py-2 fs-6">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i> Severity: {{ severity_labels.get('en', severity) }}
+              </span>
+            {% elif severity == 'Moderate' %}
+              <span class="badge bg-warning bg-opacity-10 text-warning-emphasis border border-warning-subtle px-3 py-2 fs-6">
+                <i class="bi bi-exclamation-circle-fill me-1"></i> Severity: {{ severity_labels.get('en', severity) }}
+              </span>
+            {% else %}
+              <span class="badge bg-info bg-opacity-10 text-info-emphasis border border-info-subtle px-3 py-2 fs-6">
+                <i class="bi bi-info-circle-fill me-1"></i> Severity: {{ severity_labels.get('en', severity) }}
+              </span>
+            {% endif %}
+          </div>
         </div>
 
-        <hr />
+        <!-- VISUAL COMPARISON: ORIGINAL VS GRAD-CAM -->
+        <div class="row g-3 mb-4">
+          <div class="col-md-6">
+            <div class="image-preview-container text-center">
+              <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+                <span class="small fw-bold text-secondary"><i class="bi bi-image me-1"></i> Uploaded Leaf</span>
+              </div>
+              <img src="{{ image_path }}" alt="Uploaded Rice Leaf" class="image-preview img-fluid border" />
+            </div>
+          </div>
 
-        <!-- Grad-CAM -->
-        <h5 class="text-danger text-center">
-          🔥 Explainable AI (Grad-CAM Visualization)
-        </h5>
+          <div class="col-md-6">
+            <div class="image-preview-container text-center">
+              <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+                <span class="small fw-bold text-danger"><i class="bi bi-fire me-1"></i> Grad-CAM Heatmap</span>
+                <span class="badge bg-danger-subtle text-danger small">Explainable AI</span>
+              </div>
+              <img src="{{ gradcam_path }}" alt="Grad-CAM Visualization" class="image-preview img-fluid border" />
+            </div>
+          </div>
+        </div>
 
-        <img src="{{ gradcam_path }}" class="img-fluid rounded mt-2 border" />
-
-        <p class="text-muted mt-2 text-center">
-          Highlighted red/yellow regions show infected leaf areas that
-          influenced the AI prediction.
+        <p class="text-muted small text-center mb-4">
+          <i class="bi bi-info-circle me-1"></i> Highlighted red/yellow regions identify the infected lesions influencing the neural network prediction.
         </p>
 
-        {% if solution %}
-        <hr />
-
-        <!-- AI Recommendation Report -->
-        <h4 class="text-success text-center">
-          🌱 AI-Generated Disease Management Report
-        </h4>
-
-        <div class="mt-3">
-          <div class="mb-3 p-3 bg-light rounded border">
-            <strong>🦠 Disease Cause:</strong>
-            <p class="mb-0 mt-1">{{ solution.cause }}</p>
+        <!-- MULTILINGUAL DISEASE MANAGEMENT TABS -->
+        <div class="card border-0 bg-light rounded-4 p-3 mb-4">
+          <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold mb-0 text-success">
+              <i class="bi bi-journal-medical me-1"></i> Disease Management Guide
+            </h5>
+            
+            <!-- Language Selector Pills -->
+            <ul class="nav nav-pills gap-1" id="reportLangTab" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active py-1 px-3 small" id="tab-en-btn" data-bs-toggle="pill" data-bs-target="#tab-en" type="button" role="tab">
+                  🇬🇧 English
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link py-1 px-3 small hindi-text" id="tab-hi-btn" data-bs-toggle="pill" data-bs-target="#tab-hi" type="button" role="tab">
+                  🇮🇳 हिन्दी
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link py-1 px-3 small kannada-text" id="tab-kn-btn" data-bs-toggle="pill" data-bs-target="#tab-kn" type="button" role="tab">
+                  🇮🇳 ಕನ್ನಡ
+                </button>
+              </li>
+            </ul>
           </div>
 
-          <div class="mb-3 p-3 bg-light rounded border">
-            <strong>📊 Severity Explanation:</strong>
-            <p class="mb-0 mt-1">{{ solution.severity_note }}</p>
+          <div class="tab-content" id="reportLangTabContent">
+            <!-- ENGLISH TAB -->
+            <div class="tab-pane fade show active" id="tab-en" role="tabpanel">
+              <div class="mb-3 p-3 bg-white rounded-3 border">
+                <strong class="text-dark d-block mb-1"><i class="bi bi-virus text-danger me-1"></i> Disease Cause:</strong>
+                <p class="mb-0 text-secondary">{{ disease_info.get('en', {}).get('cause', solution.cause) }}</p>
+              </div>
+              <div class="p-3 bg-white rounded-3 border">
+                <strong class="text-dark d-block mb-1"><i class="bi bi-capsule text-success me-1"></i> Treatment Recommendation:</strong>
+                <p class="mb-0 text-secondary">{{ disease_info.get('en', {}).get('treatment', solution.treatment) }}</p>
+              </div>
+            </div>
+
+            <!-- HINDI TAB -->
+            <div class="tab-pane fade" id="tab-hi" role="tabpanel">
+              <div class="mb-3 p-3 bg-white rounded-3 border hindi-text">
+                <strong class="text-dark d-block mb-1"><i class="bi bi-virus text-danger me-1"></i> रोग का कारण:</strong>
+                <p class="mb-0 text-secondary">{{ disease_info.get('hi', {}).get('cause', solution.cause) }}</p>
+              </div>
+              <div class="p-3 bg-white rounded-3 border hindi-text">
+                <strong class="text-dark d-block mb-1"><i class="bi bi-capsule text-success me-1"></i> उपचार और रोकथाम सलाह:</strong>
+                <p class="mb-0 text-secondary">{{ disease_info.get('hi', {}).get('treatment', solution.treatment) }}</p>
+              </div>
+            </div>
+
+            <!-- KANNADA TAB -->
+            <div class="tab-pane fade" id="tab-kn" role="tabpanel">
+              <div class="mb-3 p-3 bg-white rounded-3 border kannada-text">
+                <strong class="text-dark d-block mb-1"><i class="bi bi-virus text-danger me-1"></i> ರೋಗದ ಕಾರಣ:</strong>
+                <p class="mb-0 text-secondary">{{ disease_info.get('kn', {}).get('cause', solution.cause) }}</p>
+              </div>
+              <div class="p-3 bg-white rounded-3 border kannada-text">
+                <strong class="text-dark d-block mb-1"><i class="bi bi-capsule text-success me-1"></i> ಚಿಕಿತ್ಸೆ ಮತ್ತು ಪರಿಹಾರ ಕ್ರಮಗಳು:</strong>
+                <p class="mb-0 text-secondary">{{ disease_info.get('kn', {}).get('treatment', solution.treatment) }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <hr class="my-4 text-secondary opacity-25" />
+
+        <!-- 🔊 MULTILINGUAL VOICE GUIDANCE SECTION -->
+        <div class="mb-4">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <h4 class="h5 fw-bold text-success mb-0">
+              <i class="bi bi-volume-up-fill me-1"></i> Multilingual Voice Guidance
+            </h4>
+            <span class="badge bg-success-subtle text-success px-2 py-1 small">Instant Audio Playback</span>
           </div>
 
-          <div class="mb-3 p-3 bg-light rounded border">
-            <strong>💊 Treatment Recommendation:</strong>
-            <p class="mb-0 mt-1">{{ solution.treatment }}</p>
+          <!-- 🇬🇧 ENGLISH VOICE -->
+          <div class="voice-card" id="card-en">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <div class="lang-badge">
+                <span>🇬🇧</span>
+                <span>English Voice</span>
+                <div class="waveform ms-2">
+                  <div class="waveform-bar"></div>
+                  <div class="waveform-bar"></div>
+                  <div class="waveform-bar"></div>
+                  <div class="waveform-bar"></div>
+                </div>
+              </div>
+              <button type="button" class="btn-play-tts" onclick="playVoice('audio-en', 'en', `{{ speech_en }}`)">
+                <i class="bi bi-play-fill"></i> Play English
+              </button>
+            </div>
+            <audio id="audio-en" controls preload="metadata" class="w-100">
+              <source src="{{ voice_en }}" type="audio/mpeg" />
+              Your browser does not support audio playback.
+            </audio>
+          </div>
+
+          <!-- 🇮🇳 HINDI VOICE -->
+          <div class="voice-card" id="card-hi">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <div class="lang-badge hindi-text">
+                <span>🇮🇳</span>
+                <span>हिंदी आवाज मार्गदर्शन</span>
+                <div class="waveform ms-2">
+                  <div class="waveform-bar"></div>
+                  <div class="waveform-bar"></div>
+                  <div class="waveform-bar"></div>
+                  <div class="waveform-bar"></div>
+                </div>
+              </div>
+              <button type="button" class="btn-play-tts hindi-text" onclick="playVoice('audio-hi', 'hi', `{{ speech_hi }}`)">
+                <i class="bi bi-play-fill"></i> सुनिए (Hindi)
+              </button>
+            </div>
+            <audio id="audio-hi" controls preload="metadata" class="w-100">
+              <source src="{{ voice_hi }}" type="audio/mpeg" />
+              Your browser does not support audio playback.
+            </audio>
+          </div>
+
+          <!-- 🇮🇳 KANNADA VOICE -->
+          <div class="voice-card" id="card-kn">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <div class="lang-badge kannada-text">
+                <span>🇮🇳</span>
+                <span>ಕನ್ನಡ ಧ್ವನಿ ಮಾರ್ಗದರ್ಶನ</span>
+                <div class="waveform ms-2">
+                  <div class="waveform-bar"></div>
+                  <div class="waveform-bar"></div>
+                  <div class="waveform-bar"></div>
+                  <div class="waveform-bar"></div>
+                </div>
+              </div>
+              <button type="button" class="btn-play-tts kannada-text" onclick="playVoice('audio-kn', 'kn', `{{ speech_kn }}`)">
+                <i class="bi bi-play-fill"></i> ಆಲಿಸಿ (Kannada)
+              </button>
+            </div>
+            <audio id="audio-kn" controls preload="metadata" class="w-100">
+              <source src="{{ voice_kn }}" type="audio/mpeg" />
+              Your browser does not support audio playback.
+            </audio>
           </div>
         </div>
-        {% endif %}
 
-        <hr />
-
-        <!-- 🔊 Voice Section -->
-        <h5 class="text-center text-success mb-3">
-          🔊 Multilingual Voice Guidance
-        </h5>
-
-        <div class="mb-3">
-          <p class="mb-1"><strong>🇬🇧 English</strong></p>
-          <audio controls class="w-100">
-            <source src="{{ voice_en }}" type="audio/mpeg" />
-          </audio>
+        <!-- PREDICT ANOTHER IMAGE BUTTON -->
+        <div class="mt-4 pt-2">
+          <a href="/" class="btn-action-primary">
+            <i class="bi bi-arrow-repeat me-1"></i> Predict Another Image
+          </a>
         </div>
 
-        <div class="mb-3">
-          <p class="mb-1"><strong>🇮🇳 हिंदी</strong></p>
-          <audio controls class="w-100">
-            <source src="{{ voice_hi }}" type="audio/mpeg" />
-          </audio>
-        </div>
-
-        <div class="mb-3">
-          <p class="mb-1"><strong>🇮🇳 ಕನ್ನಡ</strong></p>
-          <audio controls class="w-100">
-            <source src="{{ voice_kn }}" type="audio/mpeg" />
-          </audio>
-        </div>
-
-        <a href="/" class="btn btn-primary mt-3 w-100">
-          🔁 Predict Another Image
-        </a>
       </div>
     </div>
-  </body>
+  </div>
+
+  <!-- Bootstrap 5 Bundle JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Audio Playback & Voice Management Script -->
+  <script>
+    const allAudioIds = ['audio-en', 'audio-hi', 'audio-kn'];
+
+    function stopAllAudios() {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      allAudioIds.forEach(id => {
+        const a = document.getElementById(id);
+        if (a) {
+          a.pause();
+          a.currentTime = 0;
+        }
+      });
+      document.querySelectorAll('.voice-card').forEach(c => c.classList.remove('is-playing'));
+    }
+
+    // Attach play/pause event listeners to audio tags for single-player behavior & waveform animations
+    allAudioIds.forEach(id => {
+      const audioEl = document.getElementById(id);
+      if (!audioEl) return;
+      
+      const parentCard = audioEl.closest('.voice-card');
+
+      audioEl.addEventListener('play', () => {
+        // Pause all other audios
+        allAudioIds.forEach(otherId => {
+          if (otherId !== id) {
+            const other = document.getElementById(otherId);
+            if (other && !other.paused) other.pause();
+          }
+        });
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+        }
+        document.querySelectorAll('.voice-card').forEach(c => c.classList.remove('is-playing'));
+        if (parentCard) parentCard.classList.add('is-playing');
+      });
+
+      audioEl.addEventListener('pause', () => {
+        if (parentCard) parentCard.classList.remove('is-playing');
+      });
+
+      audioEl.addEventListener('ended', () => {
+        if (parentCard) parentCard.classList.remove('is-playing');
+      });
+    });
+
+    // Custom Play Button Handler with Browser TTS Fallback
+    function playVoice(audioId, langCode, fallbackText) {
+      const audio = document.getElementById(audioId);
+      const parentCard = audio ? audio.closest('.voice-card') : null;
+
+      if (audio && !audio.paused) {
+        audio.pause();
+        return;
+      }
+
+      stopAllAudios();
+
+      if (audio) {
+        // Attempt to play the generated MP3
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise.then(() => {
+            if (parentCard) parentCard.classList.add('is-playing');
+          }).catch(err => {
+            console.warn("Direct MP3 play error, trying browser speech synthesis fallback:", err);
+            speakBrowserFallback(fallbackText, langCode, parentCard);
+          });
+        }
+      } else {
+        speakBrowserFallback(fallbackText, langCode, parentCard);
+      }
+    }
+
+    function speakBrowserFallback(text, lang, cardElement) {
+      if (!('speechSynthesis' in window)) {
+        alert("Audio playback is not supported on this browser.");
+        return;
+      }
+
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      
+      if (lang === 'en') utterance.lang = 'en-US';
+      else if (lang === 'hi') utterance.lang = 'hi-IN';
+      else if (lang === 'kn') utterance.lang = 'kn-IN';
+
+      utterance.rate = 0.95;
+
+      utterance.onstart = () => {
+        if (cardElement) cardElement.classList.add('is-playing');
+      };
+      utterance.onend = () => {
+        if (cardElement) cardElement.classList.remove('is-playing');
+      };
+      utterance.onerror = () => {
+        if (cardElement) cardElement.classList.remove('is-playing');
+      };
+
+      window.speechSynthesis.speak(utterance);
+    }
+  </script>
+</body>
 </html>

@@ -1,51 +1,199 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Rice Leaf Disease Detection</title>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rice Leaf Disease Detection System</title>
 
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-    />
-  </head>
+  <!-- Google Fonts & Bootstrap 5 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
-  <body style="background: #eef7ee">
-    <div
-      class="container d-flex justify-content-center align-items-center min-vh-100"
-    >
-      <div
-        class="card shadow p-4 text-center"
-        style="width: 420px; border-radius: 15px"
-      >
-        <h3 class="text-success mb-3">🌾 Rice Leaf Disease Detection</h3>
+  <style>
+    :root {
+      --primary: #10b981;
+      --primary-dark: #059669;
+      --surface: #ffffff;
+      --bg-gradient: linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 50%, #fefce8 100%);
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+      --shadow-lg: 0 20px 35px -10px rgba(16, 185, 129, 0.15);
+    }
 
-        <p class="text-muted mb-4">
-          Upload a rice leaf image to detect disease and get AI-based treatment
-          guidance.
-        </p>
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      background: var(--bg-gradient);
+      min-height: 100vh;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
 
-        <!-- ❌ ERROR MESSAGE (VERY IMPORTANT) -->
-        {% if error %}
-        <div class="alert alert-danger text-center">{{ error }}</div>
-        {% endif %}
+    .main-card {
+      background: var(--surface);
+      border-radius: 24px;
+      border: 1px solid rgba(255,255,255,0.8);
+      box-shadow: var(--shadow-lg);
+      width: 100%;
+      max-width: 500px;
+      overflow: hidden;
+    }
 
-        <form method="POST" enctype="multipart/form-data">
+    .card-header-custom {
+      background: linear-gradient(135deg, #065f46 0%, #047857 50%, #059669 100%);
+      color: #ffffff;
+      padding: 1.75rem 2rem;
+      text-align: center;
+    }
+
+    .upload-box {
+      border: 2px dashed #cbd5e1;
+      border-radius: 16px;
+      padding: 2rem 1.5rem;
+      text-align: center;
+      background: #f8fafc;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .upload-box:hover, .upload-box.dragover {
+      border-color: #10b981;
+      background: #f0fdf4;
+    }
+
+    .preview-container {
+      display: none;
+      margin-top: 1rem;
+      position: relative;
+    }
+    .preview-img {
+      max-height: 180px;
+      border-radius: 12px;
+      object-fit: cover;
+    }
+
+    .btn-submit {
+      background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+      border: none;
+      border-radius: 14px;
+      padding: 0.85rem 1.5rem;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: white;
+      box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);
+      transition: all 0.2s ease;
+      width: 100%;
+    }
+    .btn-submit:hover {
+      background: linear-gradient(135deg, #047857 0%, #059669 100%);
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: 0 12px 25px rgba(16, 185, 129, 0.4);
+    }
+
+    .spinner-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 9999;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="main-card">
+    <div class="card-header-custom">
+      <h2 class="h4 mb-1 fw-bold">🌾 Rice Leaf Disease Detection</h2>
+      <p class="mb-0 text-white-50 small">AI Diagnostic System with Multilingual Voice Guidance</p>
+    </div>
+
+    <div class="p-4 p-md-5">
+      {% if error %}
+      <div class="alert alert-danger d-flex align-items-center rounded-3 mb-4" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+        <div>{{ error }}</div>
+      </div>
+      {% endif %}
+
+      <p class="text-muted small text-center mb-4">
+        Upload a clear photograph of a rice leaf to detect diseases, inspect Grad-CAM heatmaps, and listen to voice recommendations in English, Hindi, and Kannada.
+      </p>
+
+      <form method="POST" enctype="multipart/form-data" id="uploadForm" onsubmit="showLoading()">
+        <label for="imageInput" class="upload-box w-100 d-block mb-3" id="dropZone">
+          <i class="bi bi-cloud-arrow-up fs-1 text-success mb-2 d-block"></i>
+          <span class="fw-bold text-dark d-block">Click to upload or drag & drop</span>
+          <span class="text-muted small">PNG, JPG or JPEG up to 10MB</span>
           <input
-            class="form-control"
             type="file"
+            id="imageInput"
             name="image"
             accept="image/*"
+            class="d-none"
             required
+            onchange="handleFileSelect(this)"
           />
-
-          <div class="d-grid mt-4">
-            <button class="btn btn-success btn-lg">🔍 Predict Disease</button>
+          <div class="preview-container" id="previewContainer">
+            <img id="previewImage" class="preview-img img-fluid border shadow-sm" alt="Leaf Preview" />
+            <p id="fileName" class="small text-muted mt-1 mb-0"></p>
           </div>
-        </form>
+        </label>
 
-        <p class="text-muted small mt-3">Supported formats: JPG, PNG</p>
+        <div class="d-grid mt-4">
+          <button type="submit" class="btn btn-submit" id="submitBtn">
+            <i class="bi bi-search me-1"></i> Analyze & Detect Disease
+          </button>
+        </div>
+      </form>
+
+      <div class="text-center mt-3">
+        <span class="badge bg-light text-secondary border px-3 py-2">
+          <i class="bi bi-translate me-1"></i> Audio supported: English • हिन्दी • ಕನ್ನಡ
+        </span>
       </div>
     </div>
-  </body>
+  </div>
+
+  <!-- Fullscreen Loading Spinner -->
+  <div class="spinner-overlay" id="loadingSpinner">
+    <div class="spinner-border text-success mb-3" style="width: 3rem; height: 3rem;" role="status">
+      <span class="visually-hidden">Analyzing image...</span>
+    </div>
+    <h5 class="fw-bold">Analyzing Rice Leaf...</h5>
+    <p class="text-white-50 small mb-0">Running Neural Network & Generating Multilingual Voice Guidance</p>
+  </div>
+
+  <script>
+    function handleFileSelect(input) {
+      if (input.files && input.files[0]) {
+        const file = input.files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          document.getElementById('previewImage').src = e.target.result;
+          document.getElementById('fileName').innerText = file.name;
+          document.getElementById('previewContainer').style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function showLoading() {
+      const input = document.getElementById('imageInput');
+      if (input.files && input.files.length > 0) {
+        document.getElementById('loadingSpinner').style.display = 'flex';
+      }
+    }
+  </script>
+</body>
 </html>
