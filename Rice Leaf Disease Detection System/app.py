@@ -1,12 +1,16 @@
-from flask import Flask, render_template, request, url_for
+from flask import Flask, render_template, request, url_for, redirect, session, flash
 import tensorflow as tf
 import numpy as np
 import cv2
 import pickle
 import os
 import time
+import sqlite3
+import re
+from functools import wraps
 from gtts import gTTS
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # ---------------- APP SETUP ----------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -16,6 +20,7 @@ app = Flask(
     static_folder=os.path.join(BASE_DIR, "static"),
     template_folder=os.path.join(BASE_DIR, "templates")
 )
+app.secret_key = os.environ.get("SECRET_KEY", "rice-leaf-disease-detection-secret-key-2026")
 
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "static", "uploads")
 GRADCAM_FOLDER = os.path.join(BASE_DIR, "static", "gradcam")
@@ -24,6 +29,59 @@ AUDIO_FOLDER = os.path.join(BASE_DIR, "static", "audio")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(GRADCAM_FOLDER, exist_ok=True)
 os.makedirs(AUDIO_FOLDER, exist_ok=True)
+
+# ---------------- DATABASE & AUTH SETUP ----------------
+DB_PATH = os.path.join(BASE_DIR, "users.db")
+
+def get_db_connection():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def init_db():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    # Seed default demo admin account if not already present
+    cursor.execute("SELECT id FROM users WHERE email = ?", ("admin@gmail.com",))
+    if not cursor.fetchone():
+        cursor.execute(
+            "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
+            ("Rice Farmer Admin", "admin@gmail.com", generate_password_hash("admin123"))
+        )
+    conn.commit()
+    conn.close()
+
+init_db()
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if "user_id" not in session:
+            flash("Please sign in with your Gmail and password to access the system.", "warning")
+            return redirect(url_for("login", next=request.url))
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.context_processor
+def inject_user():
+    if "user_id" in session:
+        return {
+            "current_user": {
+                "id": session.get("user_id"),
+                "name": session.get("user_name"),
+                "email": session.get("user_email")
+            }
+        }
+    return {"current_user": None}
 
 # ---------------- LOAD MODEL ----------------
 model_path = os.path.join(BASE_DIR, "CNN_trained_model.h5")
@@ -266,8 +324,104 @@ def generate_voice(solution, disease, severity):
     return en_text, hi_text, kn_text
 
 
-# ---------------- ROUTE ----------------
+# ---------------- AUTH ROUTES ----------------
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if "user_id" in session:
+        return redirect(url_for("index"))
+
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+        remember = request.form.get("remember")
+
+        if not email or not password:
+            flash("Please enter both your Gmail and password.", "danger")
+            return render_template("login.html", email=email, active_tab="login")
+
+        conn = get_db_connection()
+        user = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+        conn.close()
+
+        if user and check_password_hash(user["password_hash"], password):
+            session.clear()
+            session["user_id"] = user["id"]
+            session["user_name"] = user["name"]
+            session["user_email"] = user["email"]
+            if remember:
+                session.permanent = True
+
+            flash(f"Welcome back, {user['name']}! You are successfully signed in.", "success")
+            next_url = request.args.get("next")
+            if next_url and next_url.startswith("/"):
+                return redirect(next_url)
+            return redirect(url_for("index"))
+        else:
+            flash("Invalid Gmail or password. Please try again.", "danger")
+            return render_template("login.html", email=email, active_tab="login")
+
+    return render_template("login.html", active_tab="login")
+
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if "user_id" in session:
+        return redirect(url_for("index"))
+
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+        confirm_password = request.form.get("confirm_password", "")
+
+        if not name or not email or not password:
+            flash("All fields are required.", "danger")
+            return render_template("login.html", name=name, email=email, active_tab="register")
+
+        email_regex = r"^[\w\.-]+@([\w-]+\.)+[\w-]{2,4}$"
+        if not re.match(email_regex, email):
+            flash("Please enter a valid Gmail address (e.g., yourname@gmail.com).", "danger")
+            return render_template("login.html", name=name, email=email, active_tab="register")
+
+        if len(password) < 6:
+            flash("Password must be at least 6 characters long.", "danger")
+            return render_template("login.html", name=name, email=email, active_tab="register")
+
+        if password != confirm_password:
+            flash("Passwords do not match. Please re-enter.", "danger")
+            return render_template("login.html", name=name, email=email, active_tab="register")
+
+        conn = get_db_connection()
+        existing_user = conn.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
+        if existing_user:
+            conn.close()
+            flash("An account with this Gmail already exists. Please sign in.", "warning")
+            return render_template("login.html", email=email, active_tab="login")
+
+        hashed_password = generate_password_hash(password)
+        conn.execute(
+            "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
+            (name, email, hashed_password)
+        )
+        conn.commit()
+        conn.close()
+
+        flash("Account created successfully! Please sign in with your new credentials.", "success")
+        return redirect(url_for("login"))
+
+    return render_template("login.html", active_tab="register")
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    flash("You have been signed out safely.", "info")
+    return redirect(url_for("login"))
+
+
+# ---------------- DETECTION ROUTE ----------------
 @app.route("/", methods=["GET", "POST"])
+@login_required
 def index():
     if request.method == "POST":
         if "image" not in request.files:

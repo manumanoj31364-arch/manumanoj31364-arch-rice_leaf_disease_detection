@@ -214,7 +214,24 @@
     <div class="main-card">
 
       <!-- HEADER -->
-      <div class="card-header-custom">
+      <div class="card-header-custom position-relative">
+        {% if current_user %}
+        <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom border-light border-opacity-25 text-white-50 small">
+          <span class="text-white d-inline-flex align-items-center text-truncate me-2" style="max-width: 400px;">
+            <i class="bi bi-person-circle me-1 fs-6"></i>
+            <span class="fw-semibold text-white me-1">{{ current_user.name }}</span>
+            <span class="text-white-50 small d-none d-sm-inline">({{ current_user.email }})</span>
+          </span>
+          <div class="d-flex gap-2">
+            <a href="{{ url_for('index') }}" class="btn btn-sm btn-outline-light py-0 px-2 rounded-pill text-nowrap" style="font-size: 0.75rem;" title="Upload Another Leaf">
+              <i class="bi bi-house-door me-1"></i> New Scan
+            </a>
+            <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-light py-0 px-2 rounded-pill text-nowrap" style="font-size: 0.75rem;" title="Sign out">
+              <i class="bi bi-box-arrow-right me-1"></i> Logout
+            </a>
+          </div>
+        </div>
+        {% endif %}
         <h2 class="h4 mb-1 fw-bold">🌾 Rice Leaf Disease Analysis Report</h2>
         <p class="mb-0 text-white-50 small">AI-Powered Deep Learning Detection with Grad-CAM & Multilingual Guidance</p>
       </div>
